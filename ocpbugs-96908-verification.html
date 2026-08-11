@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCPBUGS-96908 Verification</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1a1a1a; max-width: 760px; margin: 0 auto; padding: 32px 20px; line-height: 1.5; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 0.85rem; margin-bottom: 28px; border-bottom: 1px solid #e5e5e5; padding-bottom: 16px; }
+  .meta a { color: #0969da; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin: 24px 0 12px; }
+  .check { display: flex; gap: 10px; padding: 10px 14px; border-radius: 6px; margin-bottom: 6px; background: #f6f8fa; }
+  .check.pass { border-left: 3px solid #1a7f37; }
+  .check.info { border-left: 3px solid #0969da; }
+  .icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
+  .check-body { flex: 1; }
+  .check-title { font-weight: 600; font-size: 0.9rem; }
+  .check-detail { font-size: 0.82rem; color: #555; margin-top: 2px; }
+  pre { background: #161b22; color: #e6edf3; padding: 12px 16px; border-radius: 6px; overflow-x: auto; font-size: 0.78rem; margin-top: 6px; line-height: 1.6; }
+  .summary { margin-top: 28px; padding: 16px; background: #dafbe1; border-radius: 6px; font-size: 0.9rem; }
+  .summary strong { color: #1a7f37; }
+  .env { font-size: 0.82rem; color: #555; margin-bottom: 20px; }
+  .env code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.78rem; }
+</style>
+</head>
+<body>
+
+<h1>OCPBUGS-96908: Remove redhat-marketplace catalog</h1>
+<div class="meta">
+  PR: <a href="https://github.com/openshift/hypershift/pull/8958">#8958</a> &middot;
+  Verified by: vismishr &middot;
+  Date: 2026-08-11
+</div>
+
+<div class="env">
+  Cluster: <code>marketplacetest-guest</code> in namespace <code>clusters</code><br>
+  CP Namespace: <code>clusters-marketplacetest-guest</code><br>
+  CPO Image: <code>quay.io/dgautam/remove-redhat-marketplace-catalog:v1</code>
+</div>
+
+<h2>Control Plane Checks</h2>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">redhat-marketplace-catalog deployment removed</div>
+    <div class="check-detail">No deployment found in control plane namespace</div>
+    <pre>$ oc get deployment -n $CP_NAMESPACE | grep redhat-marketplace
+(no output — not found)</pre>
+  </div>
+</div>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">redhat-marketplace-catalog service removed</div>
+    <div class="check-detail">No service found in control plane namespace</div>
+    <pre>$ oc get service -n $CP_NAMESPACE | grep redhat-marketplace
+(no output — not found)</pre>
+  </div>
+</div>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">NO_PROXY has no marketplace references</div>
+    <div class="check-detail">catalog-operator, olm-operator, packageserver checked</div>
+    <pre>$ for dep in catalog-operator olm-operator packageserver; do
+    oc get deployment $dep -n $CP_NAMESPACE \
+      -o jsonpath='{..env}' | grep -i marketplace
+  done
+(no output — no marketplace references)</pre>
+  </div>
+</div>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">OLM components healthy</div>
+    <div class="check-detail">All 3 OLM pods running in control plane</div>
+    <pre>$ oc get pods -n $CP_NAMESPACE | grep -iE 'olm|catalog|packageserver'
+catalog-operator-84c9c88bc-rdttx     2/2   Running   12m
+olm-operator-5d849bcfcc-sfm2z        2/2   Running   12m
+packageserver-775c59d59d-pd6rz       3/3   Running   12m
+packageserver-775c59d59d-pmqb8       3/3   Running   12m
+packageserver-775c59d59d-rdn28       3/3   Running   12m</pre>
+  </div>
+</div>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">catalog-operator ControlPlaneComponent available</div>
+    <div class="check-detail">Deployment is available with correct version</div>
+    <pre>$ oc get controlplanecomponent -n $CP_NAMESPACE | grep catalog
+catalog-operator   5.0.0-ec.5   True   True   Deployment catalog-operator is available</pre>
+  </div>
+</div>
+
+<h2>Guest Cluster Checks</h2>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">Only 3 CatalogSources on guest (no redhat-marketplace)</div>
+    <div class="check-detail">certified-operators, community-operators, redhat-operators</div>
+    <pre>$ oc get catalogsource -n openshift-marketplace --kubeconfig /tmp/guest-kubeconfig
+NAME                  DISPLAY               TYPE   PUBLISHER   AGE
+certified-operators   Certified Operators   grpc   Red Hat     8m27s
+community-operators   Community Operators   grpc   Red Hat     8m27s
+redhat-operators      Red Hat Operators     grpc   Red Hat     8m27s</pre>
+  </div>
+</div>
+
+<div class="check pass">
+  <span class="icon">&#10003;</span>
+  <div class="check-body">
+    <div class="check-title">PackageManifests served from remaining catalogs</div>
+    <div class="check-detail">OLM fully functional — operators discoverable</div>
+    <pre>$ oc get packagemanifests --kubeconfig /tmp/guest-kubeconfig | head -10
+NAME                                     CATALOG               AGE
+ack-lambda-controller                    Community Operators   10m
+tidb-operator                            Community Operators   10m
+commvault-operator                       Community Operators   10m
+victoriametrics-operator                 Community Operators   10m
+ack-bedrockagent-controller              Community Operators   10m
+node-discovery-operator                  Community Operators   10m
+awss3-operator-registry                  Community Operators   10m
+ack-keyspaces-controller                 Community Operators   10m
+ack-cognitoidentityprovider-controller   Community Operators   10m</pre>
+  </div>
+</div>
+
+<div class="summary">
+  <strong>Verification passed.</strong> The <code>redhat-marketplace</code> catalog has been fully removed from both the control plane and guest cluster. The remaining 3 OLM catalogs are healthy and serving package manifests.
+</div>
+
+</body>
+</html>
