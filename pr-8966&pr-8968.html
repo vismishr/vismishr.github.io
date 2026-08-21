@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR #8966 &amp; PR #8968 Test Verification</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #111827; --text: #e5e7eb; --muted: #9ca3af;
+      --pass: #22c55e; --fail: #ef4444; --skip: #eab308; --info: #38bdf8; --border: #374151;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background: linear-gradient(180deg, #0b1220, var(--bg)); color: var(--text); line-height: 1.5;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 1.6rem; margin: 0 0 8px; }
+    h2 { font-size: 1.25rem; margin: 32px 0 12px; padding-top: 24px; border-top: 1px solid var(--border); }
+    h2:first-of-type { border-top: none; padding-top: 0; margin-top: 16px; }
+    h3 { font-size: 1rem; margin: 20px 0 10px; color: var(--info); }
+    .subtitle { color: var(--muted); margin-bottom: 20px; }
+    .toc { margin: 16px 0 24px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+    .toc a { color: var(--info); }
+    .badge {
+      display: inline-block; padding: 6px 12px; border-radius: 999px; font-weight: 700;
+      border: 1px solid var(--border); margin: 0 8px 8px 0;
+    }
+    .badge.pass { color: var(--pass); border-color: var(--pass); }
+    .badge.fail { color: var(--fail); border-color: var(--fail); }
+    .badge.skip { color: var(--skip); border-color: var(--skip); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; background: var(--panel); }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { width: 220px; color: var(--muted); background: #0b1220; }
+    pre {
+      white-space: pre-wrap; word-break: break-word; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 12px; padding: 16px; overflow-x: auto;
+    }
+    .pass { color: var(--pass); }
+    .fail { color: var(--fail); }
+    .skip { color: var(--skip); }
+    .info { color: var(--info); }
+    footer { margin-top: 32px; color: var(--muted); font-size: 0.9rem; }
+    .section { margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>PR #8966 &amp; PR #8968 — Combined Test Verification</h1>
+    <div class="subtitle">Manual verification evidence for Hypershift status-patching refactors (CNTRLPLANE-3532)</div>
+
+    <div class="toc">
+      <strong>Contents</strong><br>
+      <a href="#pr-8966">PR #8966 — CPO status patching</a><br>
+      <a href="#pr-8968">PR #8968 — HO Karpenter AutoNode status clear</a>
+    </div>
+
+    <div>
+      <span class="badge fail">COMBINED OVERALL: FAIL</span>
+      <span class="badge pass">8966 PASS: 15</span>
+      <span class="badge fail">8966 FAIL: 2</span>
+      <span class="badge skip">8966 SKIP: 1</span>
+      <span class="badge pass">8968 PASS: 12</span>
+      <span class="badge fail">8968 FAIL: 1</span>
+    </div>
+
+    <section id="pr-8966" class="section">
+      <h2>PR #8966 Test Verification (CPO status patching)</h2>
+      <div class="subtitle">Manual verification evidence for Hypershift PR #8966</div>
+      <div>
+        <span class="badge fail">OVERALL: FAIL</span>
+        <span class="badge pass">PASS: 15</span>
+        <span class="badge fail">FAIL: 2</span>
+        <span class="badge skip">SKIP: 1</span>
+        <span class="badge">EXIT: 1</span>
+      </div>
+      <table>
+        <tbody>
+          <tr><th>Generated at</th><td><code>2026-08-21 18:39:18 IST</code></td></tr>
+          <tr><th>Operator</th><td><code>kube:admin</code></td></tr>
+          <tr><th>Management cluster</th><td><code>https://api.bugdgautam.india.aws.cee.support:6443</code></td></tr>
+          <tr><th>HC PR8966</th><td><code>vishv-pr-8966</code></td></tr>
+          <tr><th>HC PR8968</th><td><code>vismishr-pr8968-aws</code></td></tr>
+          <tr><th>CPO PR8966 image</th><td><code>quay.io/rhn_support_vismishr/hypershift:pr-8966-af4c08ce9e</code></td></tr>
+          <tr><th>HO image</th><td><code>quay.io/rhn_support_vismishr/hypershift:pr-8968-a67a776c08</code></td></tr>
+          <tr><th>AWS HC CPO annotation</th><td><code>quay.io/rhn_support_vismishr/hypershift:pr-8966-af4c08ce9e</code></td></tr>
+          <tr><th>Test script</th><td><code>/Users/vismishr/vismishr.github.io/test-pr-8966-8968.sh</code></td></tr>
+          <tr><th>Note</th><td><code>Scenario 4 rotation start verified; full completion timed out on KubeVirt cluster (KAS convergence &gt;15m)</code></td></tr>
+          <tr><th>Source file</th><td><code>pr-8966-test-verification.html</code></td></tr>
+        </tbody>
+      </table>
+      <h3>Captured test output</h3>
+      <pre>Checking prerequisites...
+✓ PASS  prereq HostedCluster vishv-pr-8966 exists
+✓ PASS  prereq HostedCluster vismishr-pr8968-aws exists
+✓ PASS  prereq CPO on vishv-pr-8966 is PR #8966
+- SKIP  prereq HO patch
+       PATCH_HO=no and HO not on pr-8968 (scenario 6 may fail)
+✓ PASS  prereq AWS HC CPO already on PR #8966
+Scenario 2: AWS default security group (PR #8966, read-only verify)
+✓ PASS  scenario 2 AWSDefaultSecurityGroupCreated=True
+✓ PASS  scenario 2 defaultWorkerSecurityGroupID populated (sg-024e2195950b56573)
+✓ PASS  scenario 2 SG exists in AWS (sg-024e2195950b56573)
+Scenario 3: ValidIDPConfiguration (PR #8966)
+✓ PASS  scenario 3 ValidIDPConfiguration=False on invalid IDP (status=False reason=IDPConfigurationError)
+✓ PASS  scenario 3 ValidIDPConfiguration=True after fix (status=True reason=IDPConfigurationValid)
+Scenario 4: Re-encryption controller (PR #8966)
+✓ PASS  scenario 4 created rotation secret vishv-pr-8966-etcd-encryption-key-rotated-14613
+✓ PASS  scenario 4 patched HCP spec to new encryption key
+✓ PASS  scenario 4 rotation started (EtcdDataEncryptionUpToDate=False history=ReadOnlyDeploy)
+✓ PASS  scenario 4 EtcdDataEncryptionUpToDate=False during rotation (status=False reason=ReEncryptionWaitingForKASConvergence)
+✗ FAIL  scenario 4 EtcdDataEncryptionUpToDate=True after rotation
+       timed out after 900s waiting for EtcdDataEncryptionUpToDate=True (last: status=False reason=ReEncryptionWaitingForKASConvergence msg=Waiting for KAS to converge with new encryption key in read-only mode)
+✗ FAIL  scenario 4 active encryption key promoted
+       status active key is vishv-pr-8966-etcd-encryption-key
+Scenario 5: conflict/retry log scan (informational)
+✓ PASS  scenario 5 CPO/vishv-pr-8966 log conflicts acceptable (73 transient lines)
+✓ PASS  scenario 5 HCCO/vishv-pr-8966 log conflicts acceptable (10 transient lines)
+✓ PASS  scenario 5 HO log conflicts acceptable (6 transient lines)
+
+═══════════════════════════════════════════════════════════════
+  PR #8966 + #8968 test summary
+═══════════════════════════════════════════════════════════════
+  PASS  prereq HostedCluster vishv-pr-8966 exists
+  PASS  prereq HostedCluster vismishr-pr8968-aws exists
+  PASS  prereq CPO on vishv-pr-8966 is PR #8966
+  SKIP  prereq HO patch
+  PASS  prereq AWS HC CPO already on PR #8966
+  PASS  scenario 2 AWSDefaultSecurityGroupCreated=True
+  PASS  scenario 2 defaultWorkerSecurityGroupID populated (sg-024e2195950b56573)
+  PASS  scenario 2 SG exists in AWS (sg-024e2195950b56573)
+  PASS  scenario 3 ValidIDPConfiguration=False on invalid IDP (status=False reason=IDPConfigurationError)
+  PASS  scenario 3 ValidIDPConfiguration=True after fix (status=True reason=IDPConfigurationValid)
+  PASS  scenario 4 created rotation secret vishv-pr-8966-etcd-encryption-key-rotated-14613
+  PASS  scenario 4 patched HCP spec to new encryption key
+  PASS  scenario 4 rotation started (EtcdDataEncryptionUpToDate=False history=ReadOnlyDeploy)
+  PASS  scenario 4 EtcdDataEncryptionUpToDate=False during rotation (status=False reason=ReEncryptionWaitingForKASConvergence)
+  FAIL  scenario 4 EtcdDataEncryptionUpToDate=True after rotation
+  FAIL  scenario 4 active encryption key promoted
+  PASS  scenario 5 CPO/vishv-pr-8966 log conflicts acceptable (73 transient lines)
+  PASS  scenario 5 HCCO/vishv-pr-8966 log conflicts acceptable (10 transient lines)
+  PASS  scenario 5 HO log conflicts acceptable (6 transient lines)
+
+  PASS: 15  FAIL: 2  SKIP: 1
+═══════════════════════════════════════════════════════════════
+EXIT_CODE=1</pre>
+    </section>
+
+    <section id="pr-8968" class="section">
+      <h2>PR #8968 Test Verification (HO Karpenter AutoNode status clear)</h2>
+      <div class="subtitle">Manual verification evidence for Hypershift PR #8968</div>
+      <div>
+        <span class="badge fail">OVERALL: FAIL</span>
+        <span class="badge pass">PASS: 12</span>
+        <span class="badge fail">FAIL: 1</span>
+        <span class="badge skip">SKIP: 0</span>
+        <span class="badge">EXIT: 1</span>
+      </div>
+      <table>
+        <tbody>
+          <tr><th>Generated at</th><td><code>2026-08-21 18:39:23 IST</code></td></tr>
+          <tr><th>Operator</th><td><code>kube:admin</code></td></tr>
+          <tr><th>Management cluster</th><td><code>https://api.bugdgautam.india.aws.cee.support:6443</code></td></tr>
+          <tr><th>HC PR8966</th><td><code>vishv-pr-8966</code></td></tr>
+          <tr><th>HC PR8968</th><td><code>vismishr-pr8968-aws</code></td></tr>
+          <tr><th>CPO PR8966 image</th><td><code>quay.io/rhn_support_vismishr/hypershift:pr-8966-af4c08ce9e</code></td></tr>
+          <tr><th>HO image</th><td><code>quay.io/rhn_support_vismishr/hypershift:pr-8968-a67a776c08</code></td></tr>
+          <tr><th>AWS HC CPO annotation</th><td><code>quay.io/rhn_support_vismishr/hypershift:pr-8966-af4c08ce9e</code></td></tr>
+          <tr><th>Test script</th><td><code>/Users/vismishr/vismishr.github.io/test-pr-8966-8968.sh</code></td></tr>
+          <tr><th>Note</th><td><code>AutoNode spec patch requires TechPreview CRD; core clear-path checks passed</code></td></tr>
+          <tr><th>Source file</th><td><code>pr-8968-test-verification.html</code></td></tr>
+        </tbody>
+      </table>
+      <h3>Captured test output</h3>
+      <pre><span class="info">Checking prerequisites...</span>
+<span class="pass">✓ PASS</span>  prereq HostedCluster vishv-pr-8966 exists
+<span class="pass">✓ PASS</span>  prereq HostedCluster vismishr-pr8968-aws exists
+<span class="pass">✓ PASS</span>  prereq CPO on vishv-pr-8966 is PR #8966
+<span class="pass">✓ PASS</span>  prereq HO patched to PR #8968
+<span class="pass">✓ PASS</span>  prereq AWS HC CPO already on PR #8966
+<span class="info">Scenario 6: Karpenter AutoNode status clear (PR #8968)</span>
+Warning: unknown field &quot;spec.autoNode&quot;
+<span class="fail">✗ FAIL</span>  scenario 6 seed status.autoNode
+<span class="skip">       could not set non-empty autoNode status</span>
+Warning: unknown field &quot;spec.autoNode&quot;
+<span class="pass">✓ PASS</span>  scenario 6 status.autoNode cleared to {}
+<span class="pass">✓ PASS</span>  scenario 6 karpenter-operator deployment removed
+<span class="pass">✓ PASS</span>  scenario 6 set-karpenter-taint ConfigMap removed
+<span class="pass">✓ PASS</span>  scenario 6 karpenter finalizer removed from HCP
+<span class="info">Scenario 5: conflict/retry log scan (informational)</span>
+<span class="pass">✓ PASS</span>  scenario 5 no persistent conflict errors in CPO/vishv-pr-8966 logs (30m)
+<span class="pass">✓ PASS</span>  scenario 5 HCCO/vishv-pr-8966 log conflicts acceptable (6 transient lines)
+<span class="pass">✓ PASS</span>  scenario 5 HO log conflicts acceptable (21 transient lines)
+
+<span class="info">═══════════════════════════════════════════════════════════════</span>
+<span class="info">  PR #8966 + #8968 test summary</span>
+<span class="info">═══════════════════════════════════════════════════════════════</span>
+  PASS  prereq HostedCluster vishv-pr-8966 exists
+  PASS  prereq HostedCluster vismishr-pr8968-aws exists
+  PASS  prereq CPO on vishv-pr-8966 is PR #8966
+  PASS  prereq HO patched to PR #8968
+  PASS  prereq AWS HC CPO already on PR #8966
+  FAIL  scenario 6 seed status.autoNode
+  PASS  scenario 6 status.autoNode cleared to {}
+  PASS  scenario 6 karpenter-operator deployment removed
+  PASS  scenario 6 set-karpenter-taint ConfigMap removed
+  PASS  scenario 6 karpenter finalizer removed from HCP
+  PASS  scenario 5 no persistent conflict errors in CPO/vishv-pr-8966 logs (30m)
+  PASS  scenario 5 HCCO/vishv-pr-8966 log conflicts acceptable (6 transient lines)
+  PASS  scenario 5 HO log conflicts acceptable (21 transient lines)
+
+  <span class="pass">PASS: 12</span>  <span class="fail">FAIL: 1</span>  <span class="skip">SKIP: 0</span>
+<span class="info">═══════════════════════════════════════════════════════════════</span>
+EXIT_CODE=1</pre>
+    </section>
+
+    <footer>
+      Combined report generated 2026-08-21 from
+      <code>pr-8966-test-verification.html</code> and
+      <code>pr-8968-test-verification.html</code>.
+      Original files unchanged.
+    </footer>
+  </div>
+</body>
+</html>
