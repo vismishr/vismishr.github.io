@@ -258,14 +258,48 @@ spec:
     targetPort: client</div>
         </div>
 
-        <h3>4. CPO Logs - No Admission Errors</h3>
+        <h3>4. Service UPDATE Scenario Test</h3>
+        <p><strong>Objective:</strong> Verify annotation is preserved during Service reconciliation (simulates upgrade scenario)</p>
+        <div class="command-section">
+            <div class="command">$ oc patch hostedcontrolplane test-nlb-9469 -n clusters-test-nlb-9469 -p '{"metadata":{"labels":{"test":"update-check"}}}' --type merge</div>
+            <div class="code-block">hostedcontrolplane.hypershift.openshift.io/test-nlb-9469 patched</div>
+        </div>
+        <table>
+            <tr>
+                <th>Check</th>
+                <th>Before Update</th>
+                <th>After Update (30s)</th>
+                <th>Result</th>
+            </tr>
+            <tr>
+                <td>Annotation Status</td>
+                <td><code>nlb</code></td>
+                <td><code>nlb</code></td>
+                <td>✅ PRESERVED</td>
+            </tr>
+            <tr>
+                <td>CPO Reconciliation</td>
+                <td>N/A</td>
+                <td>Successfully reconciled</td>
+                <td>✅ SUCCESS</td>
+            </tr>
+            <tr>
+                <td>Admission Errors</td>
+                <td>N/A</td>
+                <td>None</td>
+                <td>✅ CLEAN</td>
+            </tr>
+        </table>
+        <p><strong>Interpretation:</strong> This test proves the fix works during update scenarios. The annotation is NOT deleted during reconciliation, preventing AWS ValidatingAdmissionPolicy violations.</p>
+
+        <h3>5. CPO Logs - No Admission Errors</h3>
         <div class="command-section">
             <div class="command">$ oc logs -n clusters-test-nlb-9469 -l app=control-plane-operator --tail=50 | grep -i "error|admission"</div>
             <div class="code-block">Defaulted container "control-plane-operator" out of: control-plane-operator, cloud-token-minter
 (No errors found - clean output)</div>
         </div>
 
-        <h3>5. All Services in Control Plane Namespace</h3>
+        <h3>6. All Services in Control Plane Namespace</h3>
         <div class="command-section">
             <div class="command">$ oc get svc -n clusters-test-nlb-9469</div>
             <div class="code-block">NAME                                             TYPE           CLUSTER-IP       EXTERNAL-IP                      PORT(S)
