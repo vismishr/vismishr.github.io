@@ -195,6 +195,36 @@ image so the CAPI CRDs advance to <code>v1beta2</code> and HCCO runs, then repea
 <code>oc delete</code> test and confirm the guest ingress ELB is removed automatically.
 </div>
 
+<h2>6. Retest on a version-matched management cluster</h2>
+<p>To exercise the actual cleanup code path, the management operator itself was switched to the PR
+(5.1) image so its CAPI CRDs match what HCCO expects. On this MCE-managed cluster that is done with
+the supported image-override ConfigMap (the addon re-applies it on a ~2&nbsp;min loop):</p>
+
+<pre class="cmd">oc apply -f - &lt;&lt;'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hypershift-override-images
+  namespace: local-cluster
+data:
+  hypershift-operator: quay.io/rhn_support_vismishr/hypershift:pr9052-2026-09-24
+EOF</pre>
+
+<p>Result — the management operator now runs the PR image and the CAPI CRDs advanced to
+<code>v1beta2</code> (which is what HCCO could not resolve before):</p>
+<pre>operator image  -&gt; quay.io/rhn_support_vismishr/hypershift:pr9052-2026-09-24
+operator log    -&gt; "Latest supported OCP: 5.1.0"
+machinesets.cluster.x-k8s.io  -&gt; v1beta2 (storage), served
+conversion webhook (hypershift/operator /convert) -&gt; healthy</pre>
+
+<p>A fresh test HostedCluster <code>pr9052-lb3</code> was then created pinned to the PR image. The 5.1
+operator now accepts the 5.1 release with <strong>no</strong> skip-validation annotation:</p>
+<pre>ValidReleaseImage=True   (Release image is valid)
+SupportedHostedCluster=True
+control-plane-operator   2/2 Running  (PR image)</pre>
+<p class="meta">Retest in progress — the control plane is provisioning; the guest ingress LoadBalancer
+and the <code>oc delete</code> cleanup verification will be captured here next.</p>
+
 <footer>
 Generated during live verification of PR #9052 against a HyperShift management cluster.
 This page documents commands and outputs captured during the session.
