@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR #9052 Live Verification — OCPBUGS-93739</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+         max-width: 960px; margin: 0 auto; padding: 24px 18px; color: #1a1a1a; line-height: 1.55; }
+  h1 { font-size: 1.5rem; border-bottom: 2px solid #333; padding-bottom: 8px; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  h3 { font-size: 1rem; margin-top: 1.3rem; }
+  code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; border-left: 3px solid #888;
+        padding: 10px 12px; overflow-x: auto; font-size: 0.82rem; line-height: 1.4; }
+  .cmd { border-left-color: #2a6; }
+  .meta { color: #555; font-size: 0.9rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f2f2f2; }
+  .ok { color: #176a2b; font-weight: 600; }
+  .bad { color: #a12; font-weight: 600; }
+  .note { background: #fafafa; border: 1px solid #e2e2e2; padding: 10px 12px; border-radius: 4px; }
+  a { color: #14509e; }
+  footer { margin-top: 3rem; border-top: 1px solid #ccc; padding-top: 10px; color: #666; font-size: 0.82rem; }
+</style>
+</head>
+<body>
+
+<h1>PR #9052 Live Verification</h1>
+<p class="meta">
+  <strong>PR:</strong> <a href="https://github.com/openshift/hypershift/pull/9052">openshift/hypershift#9052</a> &nbsp;|&nbsp;
+  <strong>Bug:</strong> <a href="https://issues.redhat.com/browse/OCPBUGS-93739">OCPBUGS-93739</a> &nbsp;|&nbsp;
+  <strong>Date:</strong> 2026-09-24 &nbsp;|&nbsp;
+  <strong>Status:</strong> deletion tested — result inconclusive on this cluster (see &sect;5)
+</p>
+
+<div class="note">
+<strong>What the PR does:</strong> On AWS, when a HostedCluster is deleted, the
+<em>hosted-cluster-config-operator (HCCO)</em> now reads the guest <code>LoadBalancer</code> Service
+status and directly deletes the associated classic ELB / ELBv2 load balancers and target groups
+(scoped to the cluster's VPC and Services, not every LB in a shared VPC), then removes the
+non-ingress <code>LoadBalancer</code> Services. This prevents the teardown timeout reported in
+OCPBUGS-93739. HCCO also uses a short-lived web-identity token (kube-controller-manager service
+account + the existing cloud-controller role); the CPO IAM role is not expanded.
+</div>
+
+<h2>1. Test environment</h2>
+<table>
+  <tr><th>Item</th><th>Value</th></tr>
+  <tr><td>Management cluster</td><td>vismishr-mishra-olmtest (HyperShift management cluster)</td></tr>
+  <tr><td>Management operator</td><td>released MCE <code>hypershift-rhel9-operator</code> (max supported OCP 4.22.0)</td></tr>
+  <tr><td>AWS account / region</td><td>467305695994 / us-east-1 (profile <code>aws-login</code>)</td></tr>
+  <tr><td>PR source</td><td>branch <code>pr-9052</code>, tip commit <code>03cbd87405</code> (<em>fix: clean up AWS load balancers during teardown</em>)</td></tr>
+  <tr><td>Deletion path tested</td><td><code>oc delete hostedcluster</code> — the customer/ROSA-representative path (HCCO does in-cluster cleanup; customers never run <code>hypershift destroy</code>)</td></tr>
+</table>
+
+<h2>2. Build the image from PR #9052</h2>
+<p>Checked out the PR branch and built the all-in-one dev image with the stock <code>Dockerfile.dev</code>
+(the podman machine was resized to 16&nbsp;GB / 8&nbsp;CPU first — the 2&nbsp;GB default OOM-killed the
+emulated <code>linux/amd64</code> compile with <code>signal: killed</code>).</p>
+
+<pre class="cmd">git fetch origin pull/9052/head:pr-9052 && git checkout pr-9052
+# tip: 03cbd87405 fix: clean up AWS load balancers during teardown
+
+export IMG=quay.io/rhn_support_vismishr/hypershift
+export TAG=pr9052-$(date +%Y-%m-%d)
+podman build -f ./Dockerfile.dev --platform=linux/amd64 \
+  --build-arg COMMIT_HASH=$(git rev-parse HEAD) -t ${IMG}:${TAG} .
+podman push ${IMG}:${TAG}</pre>
+
+<pre>Successfully tagged quay.io/rhn_support_vismishr/hypershift:pr9052-2026-09-24
+=== pushed image ===
+quay.io/rhn_support_vismishr/hypershift:pr9052-2026-09-24
+digest sha256:ed9c46c329d925fae0bc72e6f81b138a033e92904b7054bea29c72b1c92c95bd
+(public repo — pullable by the management cluster and hosted control plane)</pre>
+
+<h2>3. Create the test HostedCluster (pinned to the PR image)</h2>
+<p>Created surgically — only this HC's CPO/HCCO run the PR build, via the
+<code>control-plane-operator-image</code> annotation. The management operator and the unrelated
+existing HostedCluster on the cluster are left untouched (no operator reinstall).</p>
+
+<pre class="cmd">AWS_PROFILE=aws-login hypershift create cluster aws \
+  --name pr9052-lb2 --namespace clusters \
+  --aws-creds ~/.aws/credentials --pull-secret ~/pull-secret.json \
+  --base-domain india.aws.cee.support --region us-east-1 \
+  --release-image quay.io/openshift-release-dev/ocp-release:5.1.0-ec.0-multi \
+  --node-pool-replicas 2 \
+  --control-plane-operator-image quay.io/rhn_support_vismishr/hypershift:pr9052-2026-09-24 \
+  --annotations hypershift.openshift.io/control-plane-operator-image=quay.io/rhn_support_vismishr/hypershift:pr9052-2026-09-24</pre>
+
+<h3>3a. Version-pairing notes (two issues found and fixed)</h3>
+<p>The PR's CPO is built from <code>main</code> and targets
+<code>LatestSupportedVersion = 5.1.0</code>. Two setup issues surfaced — both about pairing
+versions correctly, <em>not</em> defects in PR #9052:</p>
+<ul>
+  <li><strong>Release payload skew:</strong> a first attempt used an old 4.21.9 release. The 5.1 CPO
+  renders <code>--tls-min-version</code>/<code>--tls-cipher-suites</code> on payload sidecars
+  (konnectivity <code>proxy-server</code>, <code>aws-pod-identity-webhook</code>) whose 4.21.9
+  binaries reject those flags → <code>unknown flag: --tls-min-version</code> CrashLoopBackOff.
+  Fixed by using a matching <strong>5.1.0-ec.0</strong> release.</li>
+  <li><strong>Management-operator gate:</strong> the released management operator supports max OCP
+  4.22.0, so it rejected 5.1.0-ec.0 (<code>ValidReleaseImage=False</code>). Fixed with the intended
+  pre-release annotation:</li>
+</ul>
+
+<pre class="cmd">oc annotate hostedcluster -n clusters pr9052-lb2 \
+  hypershift.openshift.io/skip-release-image-validation=true --overwrite</pre>
+<pre>ValidReleaseImage=True | Release image is valid</pre>
+
+<h3>3b. Skew canary — KAS sidecars healthy on matched versions</h3>
+<pre class="cmd">oc get pod -n clusters-pr9052-lb2 -l app=kube-apiserver \
+  -o jsonpath='{range .items[0].status.containerStatuses[*]}{.name} ready={.ready} restarts={.restartCount}{"\n"}{end}'</pre>
+<pre>audit-logs               ready=true restarts=0
+aws-pod-identity-webhook ready=true restarts=0
+bootstrap                ready=true restarts=0
+konnectivity-server      ready=true restarts=0
+kube-apiserver           ready=true restarts=0</pre>
+<p><span class="ok">Result:</span> with the matched 5.1 CPO + 5.1 payload, the previously
+crash-looping sidecars start cleanly (0 restarts). The control plane is now provisioning.</p>
+
+<h2>4. LoadBalancer baseline before deletion</h2>
+<p>The guest cluster's cloud-controller created the ingress <code>LoadBalancer</code> for
+<code>openshift-ingress/router-default</code> — a classic ELB in the guest VPC, tagged with the
+cluster's infra ID. This is the exact resource PR #9052 is supposed to delete on teardown.</p>
+
+<pre class="cmd">AWS_PROFILE=aws-login aws elb describe-tags --region us-east-1 \
+  --load-balancer-names a633f0f63405c40b9b4512f2693aef5b</pre>
+<pre>Key: kubernetes.io/service-name          Value: openshift-ingress/router-default
+Key: kubernetes.io/cluster/pr9052-lb2-z59wt   Value: owned
+VPC: vpc-0d499cf6b7777fd80
+DNS: a633f0f63405c40b9b4512f2693aef5b-722601046.us-east-1.elb.amazonaws.com</pre>
+
+<div class="note">
+<strong>Caveat about this cluster:</strong> the guest never fully converged. The HostedCluster
+reported <code>Available=False (KASLoadBalancerNotReachable)</code> and cluster operators
+(<code>console, dns, image-registry, ingress, monitoring, openshift-samples</code>) never became
+available — the management&nbsp;&rarr;&nbsp;guest connectivity check never succeeded. The guest
+ingress ELB was still created, so it remains a valid teardown-cleanup target.
+</div>
+
+<h2>5. Delete the HostedCluster (customer path) &mdash; what happened</h2>
+<p>Deleted via the customer-representative path and watched the teardown:</p>
+<pre class="cmd">oc delete hostedcluster -n clusters pr9052-lb2 --wait=false
+# deletionTimestamp: 2026-09-24T14:47:53Z</pre>
+
+<h3>5a. Management-side teardown completed</h3>
+<pre>machines            pr9052-lb2-us-east-1a-... Deleting -&gt; gone
+ec2 instances       i-00fc4afa14f1b11fb, i-046d5d8171d35af56  -&gt; terminated
+machinesets / md    gone
+hostedcontrolplane  gone
+namespace           clusters-pr9052-lb2  Terminating -&gt; NotFound
+hostedcluster       pr9052-lb2  -&gt; NotFound
+control-plane KAS LB a9b203d98332846d59330b455f502885 -&gt; DELETED (LoadBalancerNotFound)</pre>
+
+<h3>5b. But the guest ingress ELB was LEAKED</h3>
+<p>After the HostedCluster, HostedControlPlane, and control-plane namespace were all gone, the guest
+ingress ELB was still present in AWS:</p>
+<pre class="cmd">AWS_PROFILE=aws-login aws elb describe-load-balancers --region us-east-1 \
+  --query "LoadBalancerDescriptions[?VPCId=='vpc-0d499cf6b7777fd80'].[LoadBalancerName]" --output text</pre>
+<pre>a633f0f63405c40b9b4512f2693aef5b     &lt;-- still present (leaked)</pre>
+
+<h3>5c. Why it leaked — HCCO never ran the cleanup</h3>
+<p>PR #9052's cleanup lives in the HCCO <em>resources</em> controller
+(<code>destroyCloudResources</code> &rarr; <code>ensureAWSLoadBalancersRemoved</code>), which only
+runs once the HCCO controller-manager starts and its caches sync. On this cluster HCCO was
+crash-looping the entire time:</p>
+<pre>"if kind is a CRD, it should be installed before calling Start",
+"kind":"MachineSet.cluster.x-k8s.io",
+"error":"failed to get restmapping: no matches for kind \"MachineSet\"
+         in version \"cluster.x-k8s.io/v1beta2\""
+failed to wait for inplaceupgrader caches to sync
+         kind source: *v1beta2.MachineSet: timed out</pre>
+<p>controller-runtime aborts the <em>entire</em> manager when any watched cache fails to sync, so the
+manager never started and <code>destroyCloudResources</code> <strong>never executed once</strong>.
+The LB leaked because the cleanup code never ran — not because it ran and did the wrong thing.</p>
+
+<h3>5d. Root cause of the crash-loop (a version-skew artifact, not a PR defect)</h3>
+<p>Only the test HC's CPO/HCCO were pinned to the 5.1 PR image, on a management cluster whose
+operator is 4.22-era (MCE-managed, <code>registry.redhat.io/multicluster-engine/hypershift-rhel9-operator</code>,
+max supported OCP 4.22.0). The 4.22 CAPI CRDs serve <code>cluster.x-k8s.io/v1beta1</code>; the 5.1
+HCCO watches <code>v1beta2 MachineSet</code>. That mismatch is unrelated to the load-balancer
+feature — it just prevents HCCO from booting.</p>
+
+<div class="note">
+<strong>Verdict: inconclusive on this cluster.</strong> We proved the image build, the surgical CPO/HCCO
+pinning, and the customer-path teardown mechanics — but the actual LB-cleanup code path was never
+exercised, because HCCO could not start under the management-operator version skew. This is
+<em>not</em> evidence that PR&nbsp;#9052 is broken, and it is <em>not</em> a validation of it either.
+A conclusive test needs a management cluster whose CAPI CRDs match the PR (a 5.1-matched management
+operator) so <code>MachineSet v1beta2</code> resolves and the HCCO resources controller boots.
+<br><br>
+<strong>Next step:</strong> reinstall this cluster's (MCE-managed) HyperShift operator with the PR
+image so the CAPI CRDs advance to <code>v1beta2</code> and HCCO runs, then repeat the
+<code>oc delete</code> test and confirm the guest ingress ELB is removed automatically.
+</div>
+
+<footer>
+Generated during live verification of PR #9052 against a HyperShift management cluster.
+This page documents commands and outputs captured during the session.
+</footer>
+
+</body>
+</html>
